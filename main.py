@@ -4,7 +4,7 @@ import requests, json
 #if you want to use this code for some reason, just create the file "token.cfg" which contains only the string that is your token.
 token_file = open("token.cfg","r")
 token = token_file.read()
-print(token)
+token_file.close()
 
 
 SPEEDS = ("DRIFT", "CRUISE", "BURN", "STEALTH")
@@ -31,26 +31,23 @@ def showR(r):
 	print(json.dumps(json_object, indent=2))
 
 
-
-def get_template(t=token):
-	"""UNSET HELP MESSAGE"""
-	url = ""
-	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+def show(j):
+	"""Pass in a python dictionary from a json file and prints it nicely"""
+	print(json.dumps(json_object, indent=2))
 
 
 def get_agent(t=token):
 	"""Gets your agent info, including symbol, id, headquarters, and credits"""
 	url = "https://api.spacetraders.io/v2/my/agent"
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+	return json.loads(requests.get(url, headers=head).text)
 
 
 def get_factions(t=token):
 	"""Get a list of factions and their details"""
 	url = "https://api.spacetraders.io/v2/factions"
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+	return json.loads(requests.get(url, headers=head).text)
 
 
 #Horribly incomplete, only shows one page, no formatting. Also I think this is static, and so I could just save the results locally, and eventually graph them
@@ -58,21 +55,21 @@ def get_systems(t=token):
 	"""Gets the massive list of systems, subsystems, waypoints, and coordinates"""
 	url = "https://api.spacetraders.io/v2/systems"
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+	return json.loads(requests.get(url, headers=head).text)
 
 
 def get_system_waypoints(system,t=token):
 	"""Pass in a systemSymbol string to get details about the system it represents"""
 	url = f"https://api.spacetraders.io/v2/systems/{system}/waypoints"
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+	return json.loads(requests.get(url, headers=head).text)
 
 #The docs call out the "traits" flag as important. "MARKETPLACE" and "SHIPYARD" traits are notable especially.
 def get_waypoint_info(system,waypoint,t=token):
 	"""Pass in a systemSymbol and a waypointSymbol to get details of the waypoint, including traits"""
 	url = f"https://api.spacetraders.io/v2/systems/{system}/waypoints/{waypoint}"
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+	return json.loads(requests.get(url, headers=head).text)
 
 
 
@@ -84,7 +81,7 @@ def get_shipyard_ships(system,waypoint,t=token):
 	"""List the ships available at a shipyard"""
 	url = f"https://api.spacetraders.io/v2/systems/{system}/waypoints/{waypoint}/shipyard"
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+	return json.loads(requests.get(url, headers=head).text)
 
 
 def do_buy_ship(waypoint,shipType,t=token):
@@ -92,7 +89,7 @@ def do_buy_ship(waypoint,shipType,t=token):
 	url = "https://api.spacetraders.io/v2/my/ships"
 	head = {"Authorization": ("Bearer " + t)}
 	payload = {"shipType": shipType,"waypointSymbol": waypoint}
-	return requests.post(url,headers=head,data=payload)
+	return json.loads(requests.post(url,headers=head,data=payload).text)
 
 
 
@@ -101,7 +98,7 @@ def do_refuel(ship,t=token):
 	"""Refuels the specified ship, if there is fuel available at the location"""
 	url = f"https://api.spacetraders.io/v2/my/ships/{ship}/refuel"
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.post(url,headers=head)
+	return json.loads(requests.post(url,headers=head).text)
 
 
 
@@ -111,13 +108,12 @@ def get_current_contracts(t=token):
 	"""Get a list of current contracts"""
 	url = "https://api.spacetraders.io/v2/my/contracts"
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+	return json.loads(requests.get(url, headers=head).text)
 
 #I don't think this works for more than one contract, oops
 def show_contracts(t=token):
 	"""Displays a list of current contracts in a nice, neat format"""
-	r = get_current_contracts(t)
-	j = json.loads(r.text)
+	j = get_current_contracts(t)
 	if(j["data"][0]["type"]=="PROCUREMENT"):		#expand this as I encounter more contracts
 		action_word = "deliver"
 	else:
@@ -137,20 +133,19 @@ def do_accept_contract(contract,t=token):
 	"""Accept a contract of a given contractID"""
 	url = f"https://api.spacetraders.io/v2/my/contracts/{contract}/accept"
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.post(url, headers=head)
+	return json.loads(requests.post(url, headers=head).text)
 
 
 def get_contract_details(contract,t=token):
 	"""Get the details of a given contractID"""
 	url = f"https://api.spacetraders.io/v2/my/contracts/{contract}"
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+	return json.loads(requests.get(url, headers=head).text)
 
 
 def show_contract_details(contract,t=token):
 	"""Displays the details of a specified contract in human-readable format"""
-	r = get_contract_details(contract,t)
-	j = json.loads(r.text)
+	j = get_contract_details(contract,t)
 	if(j["data"]["type"]=="PROCUREMENT"):		#expand this as I encounter more contracts
 		action_word = "deliver"
 	else:
@@ -171,31 +166,40 @@ def do_contract_deliver(contract,ship,symbol,count,t=token):
 	url = f'https://api.spacetraders.io/v2/my/contracts/{contract}/deliver'
 	head = {"Authorization": ("Bearer " + t)}
 	payload = {"shipSymbol": ship, "tradeSymbol": item, "units": count}
-	return requests.post(url, headers=head, data=payload)
+	return json.loads(requests.post(url, headers=head, data=payload).text)
 
 
-#Navigation commands
+#Navigation & Ship commands
 
 def get_ship_status(ship,t=token):
 	"""Gets the json pertaining to a given ship"""
 	url = f'https://api.spacetraders.io/v2/my/ships/{ship}'
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+	return json.loads(requests.get(url, headers=head).text)
+
+
+def show_ship(ship,t=token):
+	"""Displays the important parts of a ship's status in human-readable format"""
+	j = get_ship_status(ship,t)
+	if(j["data"]["nav"]["waypointSymbol"] != j["data"]["nav"]["route"]["destination"]["symbol"]):
+		dest_text = f'en route to {j["data"]["nav"]["route"]["destination"]["symbol"]}'
+	else:
+		dest_text = ''
+	display_text = (f'Ship {j["data"]["symbol"]} {j["data"]["nav"]["status"]} @ {j["data"]["nav"]["waypointSymbol"]} {dest_text}\n'
+		f'Flight mode: {j["data"]["nav"]["flightMode"]}\t Fuel: {j["data"]["fuel"]["current"]}/{j["data"]["fuel"]["capacity"]}\t Cargo: {j["data"]["cargo"]["units"]}/{j["data"]["cargo"]["capacity"]}')
+	print(display_text)
 
 
 def show_ship_cargo(ship,t=token):
 	"""Gets the json pertaining to a given ship, then prunes it to be just the cargo"""
-	r = get_ship_status(ship,t)
-	j = json.loads(r.text)
-	display_text =  (f'Ship {j["data"]["symbol"]} cargo:\n'
-		f'{j["data"]["cargo"]}\n')
+	j = get_ship_status(ship,t)
+	display_text =  f'Ship {j["data"]["symbol"]} cargo:\n{j["data"]["cargo"]}\n'
 	print(display_text)
 
 
 def show_ship_fuel(ship,t=token):
 	"""Gets the json pertaining to a given ship, then prunes it to be just the fuel"""
-	r = get_ship_status(ship,t)
-	j = json.loads(r.text)
+	j = get_ship_status(ship,t)
 	display_text =  f'Ship {j["data"]["symbol"]}: {j["data"]["fuel"]["current"]}/{j["data"]["fuel"]["capacity"]} Fuel'
 	print(display_text)
 
@@ -214,27 +218,26 @@ def get_ship_waypoint(ship,t=token):
 	return j["data"]["nav"]["waypointSymbol"]
 
 
-
 def do_orbit(ship,t=token):
 	"""Idempotent function to undock and move the ship passed in by argument into orbit"""
 	url = f'https://api.spacetraders.io/v2/my/ships/{ship}/orbit'
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.post(url, headers=head)
+	return json.loads(requests.post(url, headers=head).text)
 
 
 def do_dock(ship,t=token):
 	"""Idempotent function to dock the ship passed in by argument"""
 	url = f'https://api.spacetraders.io/v2/my/ships/{ship}/dock'
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.post(url, headers=head)
+	return json.loads(requests.post(url, headers=head).text)
 
 
 def set_flight_mode(ship,mode,t=token):
 	"""Sets the passed ship to the speed specified. Use the SPEEDS tuple when calling the function"""
-	url = f'https://api.spacetraders.io/v2/my/ships/{ship}/dock'
+	url = f'https://api.spacetraders.io/v2/my/ships/{ship}/nav'
 	head = {"Authorization": ("Bearer " + t)}
 	payload = {"flightMode": mode}
-	return requests.patch(url, headers=head, data=payload)
+	return json.loads(requests.patch(url, headers=head, data=payload).text)
 
 
 def set_destination(ship,waypoint,t=token):
@@ -242,7 +245,7 @@ def set_destination(ship,waypoint,t=token):
 	url = f'https://api.spacetraders.io/v2/my/ships/{ship}/navigate'
 	head = {"Authorization": ("Bearer " + t)}
 	payload = {"waypointSymbol": waypoint}
-	return requests.post(url, headers=head, data=payload)
+	return json.loads(requests.post(url, headers=head, data=payload).text)
 
 
 def set_warp(ship,system,t=token):
@@ -267,16 +270,16 @@ def do_extract(ship,survey="",t=token):
 	#if we're trying to use a survey, include that, otherwise don't
 	if(survey != ""):
 		payload = {"survey": survey}
-		return requests.post(url, headers=head, data=payload)
+		return json.loads(requests.post(url, headers=head, data=payload).text)
 	else:
-		return requests.post(url, headers=head)
+		return json.loads(requests.post(url, headers=head).text)
 
 
 def do_survey(ship,t=token):
 	"""Survey the current location to get a list of locations for resource extraction. Requires surveying equipment"""
 	url = f'https://api.spacetraders.io/v2/my/ships/{ship}/survey'
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.post(url, headers=head)
+	return json.loads(requests.post(url, headers=head).text)
 
 
 
@@ -289,7 +292,7 @@ def get_market(system,waypoint,t=token):
 	"""Get the market info of a waypoint in a system. You must have a ship at the waypoint for this to work"""
 	url = f'https://api.spacetraders.io/v2/systems/{system}/waypoints/{waypoint}/market'
 	head = {"Authorization": ("Bearer " + t)}
-	return requests.get(url, headers=head)
+	return json.loads(requests.get(url, headers=head).text)
 
 
 def do_sell(ship,item,count,t=token):
@@ -297,7 +300,7 @@ def do_sell(ship,item,count,t=token):
 	url = f'https://api.spacetraders.io/v2/my/ships/{ship}/sell'
 	head = {"Authorization": ("Bearer " + t)}
 	payload = {"symbol": item, "units": count}
-	return requests.post(url, headers=head, data=payload)
+	return json.loads(requests.post(url, headers=head, data=payload).text)
 
 #TODO: Implement a "sell all" function
 
