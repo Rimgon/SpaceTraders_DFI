@@ -1,4 +1,5 @@
-import requests, json
+import requests, json, time
+from time import sleep
 
 #Read in the token from a file I can gitignore. Sorry, you can't have mine ;)
 #if you want to use this code for some reason, just create the file "token.cfg" which contains only the string that is your token.
@@ -18,6 +19,14 @@ SPEEDS = ("DRIFT", "CRUISE", "BURN", "STEALTH")
 payload = {"symbol": "RIMGON","faction": "COSMIC"}
 r = requests.post(url, data=payload)'''
 
+
+'''
+#sample code for pagination
+payload = {"page": 2}
+return requests.get(url, headers=head, params=payload)
+'''
+
+
 # Some style standards (shocking)
 # methods that only return information and don't alter anything are to be named get_xxx
 # methods that are run once and perform a fairly boolean operation (toggles, firing, etc) are to be named do_xxx
@@ -33,7 +42,7 @@ def showR(r):
 
 def show(j):
 	"""Pass in a python dictionary from a json file and prints it nicely"""
-	print(json.dumps(json_object, indent=2))
+	print(json.dumps(j, indent=2))
 
 
 def get_agent(t=token):
@@ -93,15 +102,6 @@ def do_buy_ship(waypoint,shipType,t=token):
 
 
 
-#refuel command
-def do_refuel(ship,t=token):
-	"""Refuels the specified ship, if there is fuel available at the location"""
-	url = f"https://api.spacetraders.io/v2/my/ships/{ship}/refuel"
-	head = {"Authorization": ("Bearer " + t)}
-	return json.loads(requests.post(url,headers=head).text)
-
-
-
 #Contract Commands
 
 def get_current_contracts(t=token):
@@ -122,7 +122,7 @@ def show_contracts(t=token):
 	display_text = (f'{j["data"][0]["factionSymbol"]} {j["data"][0]["type"]} CONTRACT\n'
 		f'ID: {j["data"][0]["id"]}\n'
 		f'ACCEPTED? {j["data"][0]["accepted"]}\tFULFILLED? {j["data"][0]["fulfilled"]}\n'
-		f'{action_word} {j["data"][0]["terms"][action_word][0]["unitsRequired"]-j["data"][0]["terms"][action_word][0]["unitsFulfilled"]}/{j["data"][0]["terms"][action_word][0]["unitsRequired"]} to {j["data"][0]["terms"][action_word][0]["destinationSymbol"]}\n'
+		f'{action_word} {j["data"][0]["terms"][action_word][0]["unitsFulfilled"]}/{j["data"][0]["terms"][action_word][0]["unitsRequired"]} of {j["data"][0]["terms"][action_word][0]["tradeSymbol"]} to {j["data"][0]["terms"][action_word][0]["destinationSymbol"]}\n'
 		f'UP-FRONT: ${j["data"][0]["terms"]["payment"]["onAccepted"]}\tON COMPLETION: ${j["data"][0]["terms"]["payment"]["onFulfilled"]}\n'
 		f'DEADLINE: {j["data"][0]["terms"]["deadline"]}\n'
 		f'EXPIRES ON: {j["data"][0]["expiration"]}\n')
@@ -154,7 +154,7 @@ def show_contract_details(contract,t=token):
 	display_text = (f'{j["data"]["factionSymbol"]} {j["data"]["type"]} CONTRACT\n'
 		f'ID: {j["data"]["id"]}\n'
 		f'ACCEPTED? {j["data"]["accepted"]}\tFULFILLED? {j["data"]["fulfilled"]}\n'
-		f'{action_word} {j["data"]["terms"][action_word][0]["unitsRequired"]-j["data"]["terms"][action_word][0]["unitsFulfilled"]}/{j["data"]["terms"][action_word][0]["unitsRequired"]} to {j["data"]["terms"][action_word][0]["destinationSymbol"]}\n'
+		f'{action_word} {j["data"]["terms"][action_word][0]["unitsFulfilled"]}/{j["data"]["terms"][action_word][0]["unitsRequired"]} of {j["data"]["terms"][action_word][0]["tradeSymbol"]} to {j["data"]["terms"][action_word][0]["destinationSymbol"]}\n'
 		f'UP-FRONT: ${j["data"]["terms"]["payment"]["onAccepted"]}\tON COMPLETION: ${j["data"]["terms"]["payment"]["onFulfilled"]}\n'
 		f'DEADLINE: {j["data"]["terms"]["deadline"]}\n'
 		f'EXPIRES ON: {j["data"]["expiration"]}\n')
@@ -165,13 +165,19 @@ def do_contract_deliver(contract,ship,symbol,count,t=token):
 	"""Deliver the provided quantity of the specified item from the specified ship for the specified contract"""
 	url = f'https://api.spacetraders.io/v2/my/contracts/{contract}/deliver'
 	head = {"Authorization": ("Bearer " + t)}
-	payload = {"shipSymbol": ship, "tradeSymbol": item, "units": count}
+	payload = {"shipSymbol": ship, "tradeSymbol": symbol, "units": count}
 	return json.loads(requests.post(url, headers=head, data=payload).text)
 
 
 #Navigation & Ship commands
 
-def get_ship_status(ship,t=token):
+def get_ships(t=token):
+	"""Gets the list of all ships the agent owns"""
+	url = f'https://api.spacetraders.io/v2/my/ships'
+	head = {"Authorization": ("Bearer " + t)}
+	return json.loads(requests.get(url, headers=head).text)
+
+def get_ship_info(ship,t=token):
 	"""Gets the json pertaining to a given ship"""
 	url = f'https://api.spacetraders.io/v2/my/ships/{ship}'
 	head = {"Authorization": ("Bearer " + t)}
@@ -180,7 +186,7 @@ def get_ship_status(ship,t=token):
 
 def show_ship(ship,t=token):
 	"""Displays the important parts of a ship's status in human-readable format"""
-	j = get_ship_status(ship,t)
+	j = get_ship_info(ship,t)
 	if(j["data"]["nav"]["waypointSymbol"] != j["data"]["nav"]["route"]["destination"]["symbol"]):
 		dest_text = f'en route to {j["data"]["nav"]["route"]["destination"]["symbol"]}'
 	else:
@@ -206,15 +212,13 @@ def show_ship_fuel(ship,t=token):
 
 def get_ship_system(ship,t=token):
 	"""Gets the json pertaining to a given ship, then prunes it to be just the system data"""
-	r = get_ship_status(ship,t)
-	j = json.loads(r.text)
+	j = get_ship_status(ship,t)
 	return j["data"]["nav"]["systemSymbol"]
 
 
 def get_ship_waypoint(ship,t=token):
 	"""Gets the json pertaining to a given ship, then prunes it to be just the waypoint data"""
-	r = get_ship_status(ship,t)
-	j = json.loads(r.text)
+	j = get_ship_status(ship,t)
 	return j["data"]["nav"]["waypointSymbol"]
 
 
@@ -260,7 +264,23 @@ def set_jump(ship,system,t=token):
 
 
 
-#Resource Extraction Commands
+#Ship Functions (other than navigation)
+
+
+def do_transfer(shipSource,shipDestination,tradeSymbol,count,t=token):
+	"""Move cargo from one ship to another at the same location"""
+	url = f"https://api.spacetraders.io/v2/my/ships/{shipSource}/transfer"
+	head = {"Authorization": ("Bearer " + t)}
+	payload = {"tradeSymbol": tradeSymbol, "units": count, "shipSymbol": shipDestination}
+	return json.loads(requests.post(url,headers=head, data=payload).text)
+
+
+def do_refuel(ship,t=token):
+	"""Refuels the specified ship, if there is fuel available at the location"""
+	url = f"https://api.spacetraders.io/v2/my/ships/{ship}/refuel"
+	head = {"Authorization": ("Bearer " + t)}
+	return json.loads(requests.post(url,headers=head).text)
+
 
 def do_extract(ship,survey="",t=token):
 	"""Extract the resources from the ship's current location. Has a cooldown"""
@@ -282,6 +302,12 @@ def do_survey(ship,t=token):
 	return json.loads(requests.post(url, headers=head).text)
 
 
+def do_refine(ship,resource,t=token):
+	"""Refine IRON, COPPER, SILVER, GOLD, ALUMINUM, PLATINUM, URANITE, MERITIUM, or FUEL from raw resources"""
+	url = f'https://api.spacetraders.io/v2/my/ships/{ship}/refine'
+	head = {"Authorization": ("Bearer " + t)}
+	payload = {"produce": resource}
+	return json.loads(requests.post(url, headers=head, data=payload).text)
 
 
 
@@ -301,7 +327,46 @@ def do_sell(ship,item,count,t=token):
 	head = {"Authorization": ("Bearer " + t)}
 	payload = {"symbol": item, "units": count}
 	return json.loads(requests.post(url, headers=head, data=payload).text)
-
 #TODO: Implement a "sell all" function
+
+
+def do_purchase(ship,item,count,t=token):
+	"""buy the provided quantity of the specified item for the specified ship"""
+	url = f'https://api.spacetraders.io/v2/my/ships/{ship}/purchase'
+	head = {"Authorization": ("Bearer " + t)}
+	payload = {"symbol": item, "units": count}
+	return json.loads(requests.post(url, headers=head, data=payload).text)
+
+
+
+
+def starterContractDeliver(ship,cargoSpace):
+	#once we arrive at the destination, run this
+	do_dock(ship)
+	do_contract_deliver("clhfgy9cg19pls60df8umn14g",ship,"ALUMINUM_ORE",cargoSpace)
+	do_refuel(ship)
+	do_orbit(ship)
+	set_destination(ship,"X1-DF55-17335A")
+	#"X1-DF55-17335A" asteroid field
+	#"X1-DF55-20250Z" station to deliver to
+
+def starterContractPurchase(ship,cargoSpace):
+	#back at the asteroid field, do this
+	do_dock(ship)
+	do_refuel(ship)
+	do_purchase(ship,"ALUMINUM_ORE",cargoSpace)
+	do_orbit(ship)
+	set_destination(ship,"X1-DF55-20250Z")
+
+
+def starterContractAuto(ship,cargoSpace,trips):
+	for i in range(0,trips):
+		starterContractDeliver(ship,cargoSpace)
+		sleep(20)
+		starterContractPurchase(ship,cargoSpace)
+		sleep(20)
+		show_ship(ship)
+	print("Done!")
+
 
 print("All functions loaded")
