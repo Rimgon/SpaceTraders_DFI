@@ -169,6 +169,15 @@ def do_contract_deliver(contract,ship,symbol,count,t=token):
 	return json.loads(requests.post(url, headers=head, data=payload).text)
 
 
+def do_contract_fulfill(contract,t=token):
+	"""Fulfills a completed contract"""
+	url = f'https://api.spacetraders.io/v2/my/contracts/{contract}/fulfill'
+	head = {"Authorization": ("Bearer " + t)}
+	payload = {"contractId": contract}
+	return json.loads(requests.post(url, headers=head, data=payload).text)
+
+
+
 #Navigation & Ship commands
 
 def get_ships(t=token):
@@ -266,7 +275,6 @@ def set_jump(ship,system,t=token):
 
 #Ship Functions (other than navigation)
 
-
 def do_transfer(shipSource,shipDestination,tradeSymbol,count,t=token):
 	"""Move cargo from one ship to another at the same location"""
 	url = f"https://api.spacetraders.io/v2/my/ships/{shipSource}/transfer"
@@ -336,37 +344,6 @@ def do_purchase(ship,item,count,t=token):
 	head = {"Authorization": ("Bearer " + t)}
 	payload = {"symbol": item, "units": count}
 	return json.loads(requests.post(url, headers=head, data=payload).text)
-
-
-
-
-def starterContractDeliver(ship,cargoSpace):
-	#once we arrive at the destination, run this
-	do_dock(ship)
-	do_contract_deliver("clhfgy9cg19pls60df8umn14g",ship,"ALUMINUM_ORE",cargoSpace)
-	do_refuel(ship)
-	do_orbit(ship)
-	set_destination(ship,"X1-DF55-17335A")
-	#"X1-DF55-17335A" asteroid field
-	#"X1-DF55-20250Z" station to deliver to
-
-def starterContractPurchase(ship,cargoSpace):
-	#back at the asteroid field, do this
-	do_dock(ship)
-	do_refuel(ship)
-	do_purchase(ship,"ALUMINUM_ORE",cargoSpace)
-	do_orbit(ship)
-	set_destination(ship,"X1-DF55-20250Z")
-
-
-def starterContractAuto(ship,cargoSpace,trips):
-	for i in range(0,trips):
-		starterContractDeliver(ship,cargoSpace)
-		sleep(20)
-		starterContractPurchase(ship,cargoSpace)
-		sleep(20)
-		show_ship(ship)
-	print("Done!")
 
 
 print("All functions loaded")
